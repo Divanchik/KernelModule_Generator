@@ -1,5 +1,6 @@
 # obj-m += module1.o
-obj-m += module2.o
+# obj-m += module2.o
+obj-m += module3.o
 
 all:
 	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) modules
@@ -17,5 +18,14 @@ test2:
 	sudo dmesg -C
 	# Загружаем модуль
 	sudo insmod module2.ko
+	# Выводим лог ядра
+	dmesg
+test3:
+	# Мы ставим - перед командой rmmod чтобы игнорировать ошибки в случае, если модуль не загружен.
+	-sudo rmmod module3
+	# Очищаем лог ядра без echo
+	sudo dmesg -C
+	# Загружаем модуль
+	sudo insmod module3.ko
 	# Выводим лог ядра
 	dmesg
