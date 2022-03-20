@@ -32,6 +32,7 @@ static struct file_operations file_ops = {
 static ssize_t device_read(struct file *flip, char *buffer, size_t len, loff_t *offset)
 {
     int amount = 0;
+    int counter = len;
     while (len)
     {
         if (len > 1024)
@@ -40,11 +41,12 @@ static ssize_t device_read(struct file *flip, char *buffer, size_t len, loff_t *
             amount = len;
         unsigned long res;
         res = copy_to_user(buffer, onebuf, amount);
+        buffer += amount;
         if (res == 0)
             printk(KERN_INFO "Tried to copy %d bytes, %ld bytes failed.\n", amount, res);
         len -= amount;
     }
-    return len;
+    return counter;
 }
 
 // вызывается, когда процесс пытается записать что-то в наше устройство
