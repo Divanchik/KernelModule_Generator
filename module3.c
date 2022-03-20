@@ -31,17 +31,20 @@ static struct file_operations file_ops = {
 // когда процесс читает наше устройство, вызывается эта функция
 static ssize_t device_read(struct file *flip, char *buffer, size_t len, loff_t *offset)
 {
-    int bytes_read = 0;
+    int amount = 0;
     while (len)
     {
         if (len > 1024)
-            bytes_read = len % 1024;
+            amount = 1024;
         else
-            bytes_read = len;
-        copy_to_user(buffer, onebuf, bytes_read);
-        len -= bytes_read;
+            amount = len;
+        unsigned long res;
+        res = copy_to_user(buffer, onebuf, amount);
+        if (res == 0)
+            printk(KERN_INFO "Tried to copy %d bytes, %ld bytes failed.\n", amount, res);
+        len -= amount;
     }
-    return bytes_read;
+    return len;
 }
 
 // вызывается, когда процесс пытается записать что-то в наше устройство
@@ -65,11 +68,11 @@ static int device_release(struct inode *inode, struct file *file)
 
 static int __init chrdev2_init(void)
 {
-    int i = 1024;
-    while (i >= 0)
+    int i = 0;
+    while (i < 1024)
     {
         onebuf[i] = 1;
-        i--;
+        i++;
     }
     major_num = register_chrdev(0, DEVICE_NAME, &file_ops);
     if (major_num < 0)
