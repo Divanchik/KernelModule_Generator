@@ -1,3 +1,9 @@
+# Binary files
+*.out
+
+# Text files
+*.txt
+
 # Prerequisites
 *.d
 

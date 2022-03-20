@@ -6,10 +6,10 @@
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("dimadivan");
-MODULE_DESCRIPTION("Character device test");
+MODULE_DESCRIPTION("Generator device test");
 MODULE_VERSION("0.01");
 
-#define DEVICE_NAME "one"
+#define DEVICE_NAME "randgen"
 
 // объявление функций символьного устройства
 static int device_open(struct inode *, struct file *);
@@ -17,11 +17,10 @@ static int device_release(struct inode *, struct file *);
 static ssize_t device_read(struct file *, char *, size_t, loff_t *);
 static ssize_t device_write(struct file *, const char *, size_t, loff_t *);
 static int major_num;
-static char onebuf[1024];
+static int device_open_count = 0;
 
 // эта структура указывает на все функции нашего устройства
 static struct file_operations file_ops = {
-    .owner = THIS_MODULE,
     .read = device_read,
     .write = device_write,
     .open = device_open,
@@ -34,12 +33,9 @@ static ssize_t device_read(struct file *flip, char *buffer, size_t len, loff_t *
     int bytes_read = 0;
     while (len)
     {
-        if (len > 1024)
-            bytes_read = len % 1024;
-        else
-            bytes_read = len;
-        copy_to_user(buffer, onebuf, bytes_read);
-        len -= bytes_read;
+        put_user(1, buffer++);
+        len--;
+        bytes_read++;
     }
     return bytes_read;
 }
@@ -54,23 +50,25 @@ static ssize_t device_write(struct file *flip, const char *buffer, size_t len, l
 // вызывается, когда процесс открывает наше устройство
 static int device_open(struct inode *inode, struct file *file)
 {
+    if (device_open_count)
+    {
+        return -EBUSY;
+    }
+    device_open_count++;
+    try_module_get(THIS_MODULE);
     return 0;
 }
 
 // вызывается, когда процесс закрывает наше устройство
 static int device_release(struct inode *inode, struct file *file)
 {
+    device_open_count--;
+    module_put(THIS_MODULE);
     return 0;
 }
 
 static int __init chrdev2_init(void)
 {
-    int i = 1024;
-    while (i >= 0)
-    {
-        onebuf[i] = 1;
-        i--;
-    }
     major_num = register_chrdev(0, DEVICE_NAME, &file_ops);
     if (major_num < 0)
     {
