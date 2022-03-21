@@ -18,6 +18,7 @@ static ssize_t device_read(struct file *, char *, size_t, loff_t *);
 static ssize_t device_write(struct file *, const char *, size_t, loff_t *);
 static int major_num;
 static char onebuf[1024];
+static int device_open_count = 0;
 
 // эта структура указывает на все функции нашего устройства
 static struct file_operations file_ops = {
@@ -32,19 +33,26 @@ static struct file_operations file_ops = {
 static ssize_t device_read(struct file *flip, char *buffer, size_t len, loff_t *offset)
 {
     int amount = 0;
-    int counter = len;
+    int counter = 0;
+    unsigned long res;
     while (len)
     {
         if (len > 1024)
             amount = 1024;
         else
             amount = len;
-        unsigned long res;
         res = copy_to_user(buffer, onebuf, amount);
         buffer += amount;
-        if (res == 0)
+        if (res != 0)
+        {
             printk(KERN_INFO "Tried to copy %d bytes, %ld bytes failed.\n", amount, res);
+            amount -= res;
+        }
         len -= amount;
+        counter += amount;
+        if (signal_pending(current))
+            break;
+        cond_resched();
     }
     return counter;
 }
@@ -59,6 +67,7 @@ static ssize_t device_write(struct file *flip, const char *buffer, size_t len, l
 // вызывается, когда процесс открывает наше устройство
 static int device_open(struct inode *inode, struct file *file)
 {
+    device_open_count++;
     return 0;
 }
 
@@ -84,7 +93,7 @@ static int __init chrdev2_init(void)
     }
     else
     {
-        printk(KERN_INFO "one module loaded with device major number %d\n", major_num);
+        printk(KERN_INFO "Module3 loaded with device major number %d\n", major_num);
         return 0;
     }
 }
@@ -92,7 +101,7 @@ static int __init chrdev2_init(void)
 static void __exit chrdev2_exit(void)
 {
     unregister_chrdev(major_num, DEVICE_NAME);
-    printk(KERN_INFO "Goodbye, World!\n");
+    printk(KERN_INFO "Unloading module3, device was opened %d times.\n", device_open_count);
 }
 
 // регистрируем функции модуля
