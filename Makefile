@@ -1,4 +1,6 @@
-obj-m += module3.o
+obj-m += mod_tauswort.o
+obj-m += mod_twister.o
+obj-m += mod_lfsra5.o
 
 all:
 	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) modules
@@ -23,8 +25,8 @@ test3:
 	sudo dmesg -C
 	sudo insmod module3.ko
 	dmesg
-test4:
-	-sudo rmmod module4
+test_tauswort:
+	-sudo rmmod mod_tauswort
 	sudo dmesg -C
-	sudo insmod module4.ko
+	sudo insmod mod_tauswort.ko
 	dmesg
