@@ -3,7 +3,6 @@
 #include <linux/kernel.h>
 #include <linux/fs.h>
 #include <asm/uaccess.h>
-#include <math.h>
 #include <linux/timex.h>
 
 MODULE_LICENSE("GPL");
@@ -13,7 +12,6 @@ MODULE_VERSION("0.01");
 
 #define DEVICE_NAME "prng4"
 
-// объявление функций символьного устройства
 static int device_open(struct inode *, struct file *);
 static int device_release(struct inode *, struct file *);
 static ssize_t device_read(struct file *, char *, size_t, loff_t *);
@@ -22,12 +20,7 @@ static ssize_t device_write(struct file *, const char *, size_t, loff_t *);
 static int major_num;
 static int device_open_count = 0;
 static char buf[1024];
-static unsigned l1, l2, l3;
-#define l1_mask 0x7ffffU
-#define l2_mask 0x3fffffU
-#define l3_mask 0x7fffffU
 
-// эта структура указывает на все функции нашего устройства
 static struct file_operations file_ops = {
     .owner = THIS_MODULE,
     .read = device_read,
@@ -36,13 +29,17 @@ static struct file_operations file_ops = {
     .release = device_release
 };
 
+
+static unsigned l1, l2, l3;
+#define l1_mask 0x7ffffU
+#define l2_mask 0x3fffffU
+#define l3_mask 0x7fffffU
 unsigned _get(unsigned r, unsigned i) { return (r & (1 << i)) >> i; }
 void _set1(unsigned *r, unsigned i) { *r = *r | (1 << i); }
 void _set0(unsigned *r, unsigned i) { if (_get(*r, i)) *r = *r - (1 << i); }
 unsigned f_l1(void) { return _get(l1, 18) ^ _get(l1, 17) ^ _get(l1, 16) ^ _get(l1, 13); }
 unsigned f_l2(void) { return _get(l2, 21) ^ _get(l2, 20); }
 unsigned f_l3(void) { return _get(l3, 22) ^ _get(l3, 21) ^ _get(l3, 20) ^ _get(l3, 7); }
-
 unsigned tick(void)
 {
     unsigned x = _get(l1, 8), y = _get(l2, 10), z = _get(l3, 10);
@@ -82,7 +79,6 @@ unsigned tick(void)
 union
 {
     float fl[2];
-    char ch[8];
 }   numbuf;
 
 union
@@ -91,28 +87,79 @@ union
     unsigned dw;
 }   genbuf;
 
-// равномерное распределение, диапазон [0;1]
-float randfloat(void)
+struct
+{
+    float abs;
+    float pow;
+    float log;
+    float sqrt;
+}   mathres;
+
+void absf(float x)
+{
+    mathres.abs =  x < 0 ? -x : x;
+}
+
+void powf(float x, int n)
+{
+    mathres.pow = 1;
+    while (n > 0)
+    {
+        mathres.pow = mathres.pow * x;
+        n--;
+    }
+}
+
+void sqrtf(float a)
+{
+    float x = a/2;
+    float tmp = 0;
+    do
+    {
+        tmp = (a/x + x)/2;
+        absf(tmp - x);
+        x = tmp;
+    } while (mathres.abs >= 0.000001);
+    mathres.sqrt = tmp;
+}
+
+void logf(float x)
+{
+    int n = 1;
+    float x0 = 0, x1 = 0;
+    do
+    {
+        powf(x-1, n);
+        x1 += (n % 2 ? mathres.pow/n : -mathres.pow/n);
+        absf(x1-x0);
+        x0 = x1;
+        n++;
+    } while (mathres.abs >= 0.000001);
+    mathres.log = x1;
+}
+
+void randfloat(void)
 {
     int i;
     float res;
     genbuf.dw = 0x7FU << 23;
-	i=0;
+	  i=0;
     while (i < 23)
     {
         genbuf.dw |= (1 << i) * tick();
         i++;
     }
-	res = 1;
+	  res = 1;
     i = 1;
     while (i <= 31)
     {
-      res += powf(genbuf.fl - 1, i);
-      while (res > 1)
-        res -= 1.0;
-      i++;
+        powf(genbuf.fl - 1, i);
+        res += mathres.pow;
+        while (res > 1)
+            res -= 1.0;
+        i++;
     }
-    return res;
+    genbuf.fl = res;
 }
 
 void randfloat_normal(void)
@@ -123,13 +170,17 @@ void randfloat_normal(void)
     {
         do
         {
-            x = tick() ? -randfloat() : randfloat();
-            y = tick() ? -randfloat() : randfloat();
+            randfloat();
+            x = tick() ? -genbuf.fl : genbuf.fl;
+            randfloat();
+            y = tick() ? -genbuf.fl : genbuf.fl;
             s = x*x + y*y;
         }
         while(s <=0 || s > 1);
-        f0 = 1/2 + (x * sqrtf(-2 * logf(s) / s)) / 3;
-        f1 = 1/2 + (y * sqrtf(-2 * logf(s) / s)) / 3;
+        logf(s);
+        sqrtf(-2 * mathres.log / s);
+        f0 = 1/2 + (x * mathres.sqrt) / 3;
+        f1 = 1/2 + (y * mathres.sqrt) / 3;
     }
     while(f0 < 0 || f0 > 1 || f1 < 0 || f1 > 1);
     numbuf.fl[0] = f0;

@@ -5,7 +5,7 @@ float absf(float x)
 {
     return x < 0 ? -x : x;
 }
-
+//
 float powf(float x, int n)
 {
     float res = 1;
@@ -27,7 +27,7 @@ float logf(float x)
             x1 += powf(x-1, n)/n;
         else
             x1 -= powf(x-1, n)/n;
-        if (absf(x1-x0) < 0.000001)
+        if (abs(x1-x0) < 0.000001)
             break;
         x0 = x1;
         n++;
@@ -42,7 +42,7 @@ float sqrtf(float a)
     while (1)
     {
         x1 = (a/x0 + x0)/2;
-        if (absf(x1 - x0) < 0.000001)
+        if (abs(x1 - x0) < 0.000001)
             break;
         x0 = x1;
     }
@@ -51,7 +51,7 @@ float sqrtf(float a)
 
 int main(int argc, char **argv)
 {
-    printf("sqrtf(%f) = %f\n", atof(argv[1]), sqrtf(atof(argv[1])));
-    printf("logf(%f) = %f\n", atof(argv[1]), logf(atof(argv[1])));
+    // printf("sqrtf(%f) = %f\n", atof(argv[1]), sqrtf(atof(argv[1])));
+    // printf("logf(%f) = %f\n", atof(argv[1]), logf(atof(argv[1])));
     return 0;
 }
