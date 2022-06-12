@@ -52,7 +52,6 @@ unsigned tick(void)
 
 union
 {
-    char ch[4];
     float fl;
     unsigned dw;
 }   genbuf;
@@ -67,7 +66,16 @@ float randfloat()
         genbuf.dw |= (1 << i) * tick();
         i++;
     }
-    return genbuf.fl - 1;
+    float res = 1;
+    i = 1;
+    while (i <= 31)
+    {
+      res += powf(genbuf.fl - 1, i);
+      while (res > 1)
+        res -= 1.0;
+      i++;
+    }
+    return res;
 }
 
 void randfloat_normal(float *z0, float *z1)
@@ -91,26 +99,26 @@ void randfloat_normal(float *z0, float *z1)
     *z1 = f1;
 }
 
-void randchar_normal(char *z0, char *z1)
-{
-    float f0, f1;
-    float x, y, s;
-    do
-    {
-        do
-        {
-            x = tick() ? -randfloat() : randfloat();
-            y = tick() ? -randfloat() : randfloat();
-            s = x*x + y*y;
-        }
-        while(s <=0 || s > 1);
-        f0 = 0 + 256*(x * sqrtf(-2 * logf(s) / s)) / 3;
-        f1 = 0 + 256*(y * sqrtf(-2 * logf(s) / s)) / 3;
-    }
-    while(f0 < -127 || f0 > 127 || f1 < -127 || f1 > 127);
-    *z0 = (int)f0;
-    *z1 = (int)f1;
-}
+// void randchar_normal(char *z0, char *z1)
+// {
+//     float f0, f1;
+//     float x, y, s;
+//     do
+//     {
+//         do
+//         {
+//             x = tick() ? -randfloat() : randfloat();
+//             y = tick() ? -randfloat() : randfloat();
+//             s = x*x + y*y;
+//         }
+//         while(s <=0 || s > 1);
+//         f0 = 0 + 256*(x * sqrtf(-2 * logf(s) / s)) / 3;
+//         f1 = 0 + 256*(y * sqrtf(-2 * logf(s) / s)) / 3;
+//     }
+//     while(f0 < -127 || f0 > 127 || f1 < -127 || f1 > 127);
+//     *z0 = (int)f0;
+//     *z1 = (int)f1;
+// }
 
 int main(void)
 {

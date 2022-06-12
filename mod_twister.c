@@ -3,6 +3,7 @@
 #include <linux/kernel.h>
 #include <linux/fs.h>
 #include <asm/uaccess.h>
+#include <linux/timex.h>
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("dimadivan");
@@ -137,6 +138,7 @@ static ssize_t device_write(struct file *flip, const char *buffer, size_t len, l
 // вызывается, когда процесс открывает наше устройство
 static int device_open(struct inode *inode, struct file *file)
 {
+    init_genrand((unsigned long)random_get_entropy());
     device_open_count++;
     return 0;
 }
@@ -150,7 +152,6 @@ static int device_release(struct inode *inode, struct file *file)
 static int __init chrdev2_init(void)
 {
     major_num = register_chrdev(0, DEVICE_NAME, &file_ops);
-    init_genrand((unsigned long)major_num);
     if (major_num < 0)
     {
         printk(KERN_ALERT "Could not register device: %d\n", major_num);

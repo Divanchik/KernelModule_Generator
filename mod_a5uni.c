@@ -3,14 +3,15 @@
 #include <linux/kernel.h>
 #include <linux/fs.h>
 #include <asm/uaccess.h>
+#include <math.h>
 #include <linux/timex.h>
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("dimadivan");
-MODULE_DESCRIPTION("Pseudo-random number generator (LFSR A5)");
+MODULE_DESCRIPTION("Pseudo-random number generator (LFSR A5 floats)");
 MODULE_VERSION("0.01");
 
-#define DEVICE_NAME "prng3"
+#define DEVICE_NAME "prng4"
 
 // объявление функций символьного устройства
 static int device_open(struct inode *, struct file *);
@@ -78,16 +79,61 @@ unsigned tick(void)
     return res1 ^ res2 ^ res3;
 }
 
-char get_rand(void)
+union
 {
-    char res = 0;
-    int i = 0;
-    while (i < 8)
+    float fl[2];
+    char ch[8];
+}   numbuf;
+
+union
+{
+    float fl;
+    unsigned dw;
+}   genbuf;
+
+// равномерное распределение, диапазон [0;1]
+float randfloat(void)
+{
+    int i;
+    float res;
+    genbuf.dw = 0x7FU << 23;
+	i=0;
+    while (i < 23)
     {
-        res += (1 << i) * tick();
+        genbuf.dw |= (1 << i) * tick();
         i++;
     }
+	res = 1;
+    i = 1;
+    while (i <= 31)
+    {
+      res += powf(genbuf.fl - 1, i);
+      while (res > 1)
+        res -= 1.0;
+      i++;
+    }
     return res;
+}
+
+void randfloat_normal(void)
+{
+    float f0, f1;
+    float x, y, s;
+    do
+    {
+        do
+        {
+            x = tick() ? -randfloat() : randfloat();
+            y = tick() ? -randfloat() : randfloat();
+            s = x*x + y*y;
+        }
+        while(s <=0 || s > 1);
+        f0 = 1/2 + (x * sqrtf(-2 * logf(s) / s)) / 3;
+        f1 = 1/2 + (y * sqrtf(-2 * logf(s) / s)) / 3;
+    }
+    while(f0 < 0 || f0 > 1 || f1 < 0 || f1 > 1);
+    numbuf.fl[0] = f0;
+    numbuf.fl[1] = f1;
 }
 
 // когда процесс читает наше устройство, вызывается эта функция
@@ -99,9 +145,10 @@ static ssize_t device_read(struct file *flip, char *buffer, size_t len, loff_t *
     while (len)
     {
         int i=0;
-        while(i<1024)
+        while(i<128)
         {
-            buf[i] = get_rand();
+            randfloat_normal();
+            memcpy(buf + i*8, &numbuf, 8);
             i++;
         }
         if (len > 1024)
