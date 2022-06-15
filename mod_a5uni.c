@@ -3,6 +3,7 @@
 #include <linux/kernel.h>
 #include <linux/fs.h>
 #include <asm/uaccess.h>
+#include <asm/fpu/api.h>
 #include <linux/timex.h>
 
 MODULE_LICENSE("GPL");
@@ -87,55 +88,57 @@ union
     unsigned dw;
 }   genbuf;
 
-struct
+float absf(float x)
 {
-    float abs;
-    float pow;
-    float log;
-    float sqrt;
-}   mathres;
-
-void absf(float x)
-{
-    mathres.abs =  x < 0 ? -x : x;
+    return x < 0 ? -x : x;
 }
-
-void powf(float x, int n)
+//
+float powf(float x, int n)
 {
-    mathres.pow = 1;
+    float res;
+    res = 1;
     while (n > 0)
     {
-        mathres.pow = mathres.pow * x;
+        res *= x;
         n--;
     }
+    return res;
 }
 
-void sqrtf(float a)
+float logf(float x)
 {
-    float x = a/2;
-    float tmp = 0;
-    do
+    int n;
+    float x0, x1;
+    n = 1;
+    x0 = 0; x1 = 0;
+    while (1)
     {
-        tmp = (a/x + x)/2;
-        absf(tmp - x);
-        x = tmp;
-    } while (mathres.abs >= 0.000001);
-    mathres.sqrt = tmp;
-}
-
-void logf(float x)
-{
-    int n = 1;
-    float x0 = 0, x1 = 0;
-    do
-    {
-        powf(x-1, n);
-        x1 += (n % 2 ? mathres.pow/n : -mathres.pow/n);
-        absf(x1-x0);
+        if (n % 2 == 1)
+            x1 += powf(x-1, n)/n;
+        else
+            x1 -= powf(x-1, n)/n;
+        if (absf(x1-x0) < 0.000001)
+            break;
         x0 = x1;
         n++;
-    } while (mathres.abs >= 0.000001);
-    mathres.log = x1;
+    }
+    return x1;
+}
+
+float sqrtf(float a)
+{
+    float x0;
+    float x1;
+    x0 = a/2;
+    x1 = 0;
+    while (1)
+    {
+        x1 = (a/x0 + x0)/2;
+        if (absf(x1 - x0) < 0.000001)
+            break;
+        x0 = x1;
+    }
+    return x1;
 }
 
 void randfloat(void)
@@ -153,8 +156,7 @@ void randfloat(void)
     i = 1;
     while (i <= 31)
     {
-        powf(genbuf.fl - 1, i);
-        res += mathres.pow;
+        res += powf(genbuf.fl - 1, i);
         while (res > 1)
             res -= 1.0;
         i++;
@@ -177,10 +179,8 @@ void randfloat_normal(void)
             s = x*x + y*y;
         }
         while(s <=0 || s > 1);
-        logf(s);
-        sqrtf(-2 * mathres.log / s);
-        f0 = 1/2 + (x * mathres.sqrt) / 3;
-        f1 = 1/2 + (y * mathres.sqrt) / 3;
+        f0 = 1/2 + (x * sqrtf(-2 * logf(s) / s)) / 3;
+        f1 = 1/2 + (y * sqrtf(-2 * logf(s) / s)) / 3;
     }
     while(f0 < 0 || f0 > 1 || f1 < 0 || f1 > 1);
     numbuf.fl[0] = f0;

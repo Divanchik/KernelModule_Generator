@@ -7,6 +7,6 @@ head -c 128 /dev/prng3 >> lfsra5.log
 hexyl lfsra5.log
 rm lfsra5.log
 
-# sudo rm /dev/prng3
-# sudo rmmod mod_lfsra5
-# dmesg
+sudo rm /dev/prng3
+sudo rmmod mod_lfsra5
+dmesg
