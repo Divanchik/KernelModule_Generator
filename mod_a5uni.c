@@ -190,6 +190,7 @@ void randfloat_normal(void)
 // когда процесс читает наше устройство, вызывается эта функция
 static ssize_t device_read(struct file *flip, char *buffer, size_t len, loff_t *offset)
 {
+    kernel_fpu_begin();
     int amount = 0;
     int counter = 0;
     unsigned long res;
@@ -219,6 +220,7 @@ static ssize_t device_read(struct file *flip, char *buffer, size_t len, loff_t *
             break;
         cond_resched();
     }
+    kernel_fpu_end();
     return counter;
 }
 
